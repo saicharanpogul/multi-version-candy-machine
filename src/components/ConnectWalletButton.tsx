@@ -115,11 +115,11 @@ const ConnectWalletButton: React.FC<Props> = ({
       >
         <PopoverTrigger>
           <Button
-            color={"text"}
-            backgroundColor="primary"
+            color={"black"}
+            backgroundColor="whitesmoke"
             border="1px"
-            _hover={{ backgroundColor: "primary" }}
-            _active={{ backgroundColor: "primary" }}
+            _hover={{ backgroundColor: "whitesmoke" }}
+            _active={{ backgroundColor: "whitesmoke" }}
             onClick={
               isPhantom
                 ? connectWallet
