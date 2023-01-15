@@ -3,37 +3,76 @@ import {
   bundlrStorage,
   Metaplex,
   walletAdapterIdentity,
-  isCandyMachine,
-  isCandyMachineV2,
-  CandyMachine,
-  DefaultCandyGuardSettings,
-  CandyMachineV2,
 } from "@metaplex-foundation/js";
-import { useConnection, useWallet } from "@solana/wallet-adapter-react";
-import { PublicKey } from "@solana/web3.js";
-import { useCallback, useMemo } from "react";
-import { getUrls, NETWORK } from "../utils";
-import useNetwork from "./useNetwork";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { clusterApiUrl, Connection, PublicKey } from "@solana/web3.js";
+import { useRouter } from "next/router";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { getUrls } from "../utils";
 
-const useMetaplex = () => {
-  const { connection } = useConnection();
+const useMetaplex = (changed?: () => void) => {
   const walletAdapter = useWallet();
   const toast = useToast();
-  const { network } = useNetwork();
-  const metaplex = useMemo(
-    () =>
-      Metaplex.make(connection)
-        .use(walletAdapterIdentity(walletAdapter))
-        .use(
-          bundlrStorage({
-            // @ts-ignore
-            address: getUrls(network)?.bundlrAddress,
-            // @ts-ignore
-            providerUrl: getUrls(network)?.rpc,
-            timeout: 60000,
-          })
-        ),
-    [connection, network, walletAdapter]
+  const [network, setNetwork] = useState<Network>();
+  const [metaplex, setMetaplex] = useState<Metaplex>();
+  const router = useRouter();
+
+  useEffect(() => {
+    const _network = localStorage.getItem("network") as Network;
+    if (_network && walletAdapter) {
+      setNetwork(_network);
+      setMetaplex(
+        Metaplex.make(new Connection(getUrls(_network).rpc))
+          .use(walletAdapterIdentity(walletAdapter))
+          .use(
+            bundlrStorage({
+              // @ts-ignore
+              address: getUrls(_network)?.bundlrAddress,
+              // @ts-ignore
+              providerUrl: getUrls(_network)?.rpc,
+              timeout: 60000,
+            })
+          )
+      );
+    } else {
+      setNetwork("devnet");
+      setMetaplex(
+        Metaplex.make(new Connection(clusterApiUrl("devnet")))
+          .use(walletAdapterIdentity(walletAdapter))
+          .use(
+            bundlrStorage({
+              // @ts-ignore
+              address: "https://devnet.bundlr.network",
+              // @ts-ignore
+              providerUrl: clusterApiUrl("devnet"),
+              timeout: 60000,
+            })
+          )
+      );
+    }
+  }, [walletAdapter]);
+
+  const changeNetwork = useCallback(
+    (network: Network) => {
+      localStorage.setItem("network", network);
+      setNetwork(network);
+      setMetaplex(
+        Metaplex.make(new Connection(getUrls(network).rpc))
+          .use(walletAdapterIdentity(walletAdapter))
+          .use(
+            bundlrStorage({
+              // @ts-ignore
+              address: getUrls(network)?.bundlrAddress,
+              // @ts-ignore
+              providerUrl: getUrls(network)?.rpc,
+              timeout: 60000,
+            })
+          )
+      );
+      router.replace("/");
+      changed && changed();
+    },
+    [changed, walletAdapter]
   );
 
   const isV3 = useCallback((model: string) => {
@@ -43,7 +82,7 @@ const useMetaplex = () => {
   const getCandyMachine = useCallback(
     async (cmId: PublicKey) => {
       try {
-        const _cm = await metaplex
+        const _cm = await metaplex!
           .candyMachines()
           .findByAddress({ address: cmId });
 
@@ -55,7 +94,7 @@ const useMetaplex = () => {
         return _cm;
       } catch (error) {
         try {
-          const _cm = await metaplex
+          const _cm = await metaplex!
             .candyMachinesV2()
             .findByAddress({ address: cmId });
           toast({
@@ -75,9 +114,10 @@ const useMetaplex = () => {
         }
       }
     },
-    [metaplex]
+    [metaplex, toast]
   );
-  return { metaplex, getCandyMachine, isV3 };
+
+  return { metaplex, getCandyMachine, isV3, getUrls, network, changeNetwork };
 };
 
 export default useMetaplex;

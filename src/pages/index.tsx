@@ -1,12 +1,7 @@
-import Head from "next/head";
-import Image from "next/image";
-import { Roboto } from "@next/font/google";
-import styles from "@/styles/Home.module.css";
+import Navbar from "@/components/Navbar";
+import useMetaplex from "@/hooks/useMetaplex";
+import { truncateAddress } from "@/utils";
 import { Box, Container, Flex, Heading, Text } from "@chakra-ui/layout";
-import { useForm } from "react-hook-form";
-import { yupResolver } from "@hookform/resolvers/yup";
-import * as yup from "yup";
-import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import {
   Button,
   FormControl,
@@ -14,16 +9,19 @@ import {
   Input,
   useToast,
 } from "@chakra-ui/react";
-import { useCallback, useEffect, useState } from "react";
-import useMetaplex from "@/hooks/useMetaplex";
+import { yupResolver } from "@hookform/resolvers/yup";
 import {
   CandyMachine,
   CandyMachineV2,
   DefaultCandyGuardSettings,
 } from "@metaplex-foundation/js";
-import Navbar from "@/components/Navbar";
+import { Roboto } from "@next/font/google";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
-import { truncateAddress } from "@/utils";
+import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+import Head from "next/head";
+import { useCallback, useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import * as yup from "yup";
 
 const roboto = Roboto({ weight: "400", subsets: ["latin"] });
 
@@ -50,9 +48,14 @@ export default function Home() {
   const [cm, setCm] = useState<
     CandyMachine<DefaultCandyGuardSettings> | CandyMachineV2
   >();
-  const { getCandyMachine, isV3, metaplex } = useMetaplex();
+  const [isChanged, setIsChanged] = useState(false);
+  const change = () => {
+    setIsChanged((_prev) => !_prev);
+  };
+  const { getCandyMachine, isV3, metaplex } = useMetaplex(change);
   const { connection } = useConnection();
   const [loading, setLoading] = useState(false);
+  const [setting, setSetting] = useState(false);
   const [mintButton, setMintButton] = useState<{
     title: string;
     disabled: boolean;
@@ -69,22 +72,29 @@ export default function Home() {
       cmId: "",
     },
   });
-  const onSubmit = (data: { cmId: string }) => {
-    setCmId(data.cmId);
-    getCandyMachine(new PublicKey(data.cmId))
-      .then((_cm) => {
-        setCm(_cm);
-      })
-      .catch((error) => {
-        console.error(error);
-      });
-  };
+  const onSubmit = useCallback(
+    (data: { cmId: string }) => {
+      setSetting(true);
+      setCmId(data.cmId);
+      getCandyMachine(new PublicKey(data.cmId))
+        .then((_cm) => {
+          setCm(_cm);
+        })
+        .catch((error) => {
+          console.error(error);
+        })
+        .finally(() => {
+          setSetting(false);
+        });
+    },
+    [getCandyMachine]
+  );
   const mint = useCallback(async () => {
     try {
       if (!cmId && !cm && !walletAdapter.connected) return;
       setLoading(true);
       if (cm && isV3(cm?.model)) {
-        const mint = await metaplex.candyMachines().mint({
+        const mint = await metaplex!.candyMachines().mint({
           candyMachine: cm as CandyMachine<DefaultCandyGuardSettings>,
           collectionUpdateAuthority: cm?.authorityAddress as PublicKey,
         });
@@ -97,7 +107,7 @@ export default function Home() {
           duration: 10000,
         });
       } else {
-        const mint = await metaplex.candyMachinesV2().mint({
+        const mint = await metaplex!.candyMachinesV2().mint({
           candyMachine: cm as CandyMachineV2,
         });
         console.log(mint);
@@ -127,6 +137,7 @@ export default function Home() {
       setLoading(false);
     }
   }, [cm, isV3, metaplex, toast, walletAdapter.connected]);
+
   const isMintDisabled = useCallback(async () => {
     if (!walletAdapter || !connection || !walletAdapter?.publicKey) return;
     return (
@@ -139,6 +150,7 @@ export default function Home() {
           cm?.price?.basisPoints.toNumber())
     );
   }, []);
+
   useEffect(() => {
     isMintDisabled().then((isDisabled) => {
       if (isDisabled) {
@@ -148,11 +160,16 @@ export default function Home() {
       }
     });
   }, [isMintDisabled]);
+
+  useEffect(() => {}, [isChanged, metaplex]);
   return (
     <div className={roboto.className}>
       <Head>
         <title>multi-version cm</title>
-        <meta name="description" content="set cm id from any of localnet, devnet, & mainnet-beta network and mint." />
+        <meta
+          name="description"
+          content="set cm id from any of localnet, devnet, & mainnet-beta network and mint."
+        />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
@@ -189,7 +206,13 @@ export default function Home() {
                 {errors.cmId && errors.cmId.message}
               </FormErrorMessage>
             </FormControl>
-            <Button mt="4" w="full" type="submit">
+            <Button
+              mt="4"
+              w="full"
+              type="submit"
+              loadingText="minting..."
+              isLoading={setting}
+            >
               set
             </Button>
           </form>

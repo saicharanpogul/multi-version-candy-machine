@@ -6,7 +6,7 @@ export const truncateAddress = (address: string) => {
 
 export const NETWORK: Network = "localnet";
 export const getUrls = (
-  network: Network,
+  network: Network | undefined,
   sig?: string,
   type?: "tx" | "address"
 ) => {

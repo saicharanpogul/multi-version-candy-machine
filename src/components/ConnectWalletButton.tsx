@@ -1,4 +1,4 @@
-import useNetwork from "@/hooks/useNetwork";
+import useMetaplex from "@/hooks/useMetaplex";
 import {
   Box,
   Button,
@@ -15,13 +15,13 @@ import {
   PopoverTrigger,
   useDisclosure,
   useMediaQuery,
-  useToast,
+  useToast
 } from "@chakra-ui/react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { PhantomWalletName } from "@solana/wallet-adapter-wallets";
 import React, { useCallback, useEffect, useState } from "react";
 import usePhantom from "../hooks/usePhantom";
-import { NETWORK, truncateAddress } from "../utils";
+import { truncateAddress } from "../utils";
 
 interface WithChildren {
   children: React.ReactNode;
@@ -39,7 +39,7 @@ const ConnectWalletButton: React.FC<Props> = ({
   style,
 }) => {
   const isPhantom = usePhantom();
-  const { network, changeNetwork } = useNetwork();
+  const { network, changeNetwork } = useMetaplex();
   const { connected, connect, select, disconnect, publicKey, wallet } =
     useWallet();
   const [base58, setBase58] = useState("");
