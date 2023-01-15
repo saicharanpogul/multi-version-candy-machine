@@ -126,7 +126,7 @@ const ConnectWalletButton: React.FC<Props> = ({
                 : () => {
                     if (!isMobileOrTablet) {
                       return window.open(
-                        `https://phantom.app/ul/browse/https://tatvos.saicharanpogul.xyz`
+                        `https://phantom.app/ul/browse/https://mvcm.saicharanpogul.xyz`
                       );
                     }
                     return window.open("https://phantom.app");
