@@ -109,7 +109,7 @@ export default function Home() {
                 _cm.candyGuard.guards.solPayment.amount.basisPoints.toNumber()
               ) {
                 setMintButton({
-                  title: "Insufficient Bonk Balance",
+                  title: "Insufficient Balance",
                   disabled: true,
                 });
               } else {
@@ -165,6 +165,11 @@ export default function Home() {
                     title: "Insufficient Bonk Balance",
                     disabled: true,
                   });
+                } else {
+                  setMintButton({
+                    title: "Mint",
+                    disabled: false,
+                  });
                 }
               }
             }
@@ -209,6 +214,11 @@ export default function Home() {
                   setMintButton({
                     title: "Insufficient Bonk Balance",
                     disabled: true,
+                  });
+                } else {
+                  setMintButton({
+                    title: "Mint",
+                    disabled: false,
                   });
                 }
               }
