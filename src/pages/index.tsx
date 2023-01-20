@@ -224,6 +224,7 @@ export default function Home() {
 
   const isMintDisabled = useCallback(async () => {
     if (!walletAdapter || !connection || !walletAdapter?.publicKey) return;
+    if (tokenMint) return;
     return (
       (await connection.getBalance(walletAdapter?.publicKey as PublicKey)) <
       // @ts-ignore
@@ -241,6 +242,7 @@ export default function Home() {
     cm?.price?.basisPoints,
     connection,
     isV3,
+    tokenMint,
     walletAdapter,
   ]);
 
