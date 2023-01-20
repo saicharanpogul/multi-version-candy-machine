@@ -15,13 +15,14 @@ import {
   PopoverTrigger,
   useDisclosure,
   useMediaQuery,
-  useToast
+  useToast,
 } from "@chakra-ui/react";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { PhantomWalletName } from "@solana/wallet-adapter-wallets";
+import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import React, { useCallback, useEffect, useState } from "react";
 import usePhantom from "../hooks/usePhantom";
-import { truncateAddress } from "../utils";
+import { NETWORK, truncateAddress } from "../utils";
 
 interface WithChildren {
   children: React.ReactNode;
@@ -38,6 +39,7 @@ const ConnectWalletButton: React.FC<Props> = ({
   onChildClick,
   style,
 }) => {
+  const { connection } = useConnection();
   const isPhantom = usePhantom();
   const { network, changeNetwork } = useMetaplex();
   const { connected, connect, select, disconnect, publicKey, wallet } =
@@ -105,6 +107,24 @@ const ConnectWalletButton: React.FC<Props> = ({
       onClose();
     }
   }, [base58, connected, onClose, toast]);
+  const requestAirdrop = useCallback(async () => {
+    try {
+      await connection.requestAirdrop(
+        publicKey as PublicKey,
+        2 * LAMPORTS_PER_SOL
+      );
+      toast({
+        title: "Airdrop successful",
+        description: "Airdropped 2 SOL",
+        status: "success",
+        duration: 5000,
+        isClosable: true,
+      });
+      onClose();
+    } catch (error) {
+      console.log(error);
+    }
+  }, [connection, onClose, publicKey, toast]);
   return (
     <Box {...style}>
       <Popover
@@ -175,6 +195,19 @@ const ConnectWalletButton: React.FC<Props> = ({
               >
                 copy address
               </Button>
+              {(NETWORK === "devnet" || NETWORK === "localnet") && (
+                <>
+                  <Divider />
+                  <Button
+                    width={"full"}
+                    variant="unstyled"
+                    color={"white"}
+                    onClick={requestAirdrop}
+                  >
+                    Airdrop SOL
+                  </Button>
+                </>
+              )}
             </PopoverBody>
           </PopoverContent>
         )}

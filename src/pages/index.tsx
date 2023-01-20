@@ -60,6 +60,7 @@ export default function Home() {
   >();
   const [ticker, setTicker] = useState("sol");
   const [isChanged, setIsChanged] = useState(false);
+  const [price, setPrice] = useState(0);
   const change = () => {
     setIsChanged((_prev) => !_prev);
   };
@@ -84,61 +85,134 @@ export default function Home() {
       cmId: "",
     },
   });
-  const onSubmit = useCallback(
-    (data: { cmId: string }) => {
-      setTicker("sol");
-      if (!walletAdapter || !walletAdapter.publicKey) {
-        return toast({ title: "Connect wallet", status: "info" });
-      }
-      setSetting(true);
-      setCmId(data.cmId);
-      getCandyMachine(new PublicKey(data.cmId))
+  const cmStatusRefresh = useCallback(
+    async (_cmId: PublicKey) => {
+      getCandyMachine(_cmId)
         .then(async (_cm) => {
           setCm(_cm);
-          // @ts-ignore
-          if (_cm.tokenMintAddress) {
+          // console.log(_cm);
+          if (isV3(_cm.model)) {
+            console.log("V3");
             // @ts-ignore
-            setTokenMint(_cm.tokenMintAddress);
-            // @ts-ignore
-            // console.log(_cm.tokenMintAddress);
-            const nft = await metaplex
-              ?.nfts()
-              // @ts-ignore
-              .findByMint({ mintAddress: _cm.tokenMintAddress as PublicKey });
-            setTokenMintMetadata(nft);
-            // console.log(nft);
-            setTicker(nft!.symbol.toLowerCase());
-            const tokenAccounts =
-              await connection.getParsedTokenAccountsByOwner(
-                walletAdapter.publicKey as PublicKey,
+            if (_cm.candyGuard.guards.solPayment) {
+              setPrice(
                 // @ts-ignore
-                { mint: _cm.tokenMintAddress }
+                _cm.candyGuard.guards.solPayment.amount.basisPoints.toNumber() /
+                  LAMPORTS_PER_SOL
               );
-            if (tokenAccounts.value.length === 0) {
-              setMintButton({ title: "No Bonk Account", disabled: true });
-            } else {
-              const tokenAccount = await getAssociatedTokenAddress(
-                // @ts-ignore
-                _cm.tokenMintAddress,
+              const _balance = await connection.getBalance(
                 walletAdapter.publicKey as PublicKey
               );
-              const tokenBalance = await connection.getTokenAccountBalance(
-                tokenAccount
-              );
               if (
+                _balance <=
                 // @ts-ignore
-                tokenBalance.value.uiAmount <=
-                // @ts-ignore
-                (isV3(cm?.model)
-                  ? // @ts-ignore
-                    cm?.accountInfo?.lamports.basisPoints.toNumber()
-                  : // @ts-ignore
-                    cm?.price?.basisPoints.toNumber())
+                _cm.candyGuard.guards.solPayment.amount.basisPoints.toNumber()
               ) {
                 setMintButton({
                   title: "Insufficient Bonk Balance",
                   disabled: true,
                 });
+              } else {
+                setMintButton({
+                  title: "Mint",
+                  disabled: false,
+                });
+              }
+            }
+            // @ts-ignore
+            if (_cm.candyGuard.guards.tokenPayment) {
+              setPrice(
+                // @ts-ignore
+                _cm.candyGuard.guards.tokenPayment.amount.basisPoints.toNumber() /
+                  LAMPORTS_PER_SOL
+              );
+              // @ts-ignore
+              const mint = _cm.candyGuard.guards.tokenPayment.mint;
+              setTokenMint(mint);
+              const nft = await metaplex
+                ?.nfts()
+                // @ts-ignore
+                .findByMint({
+                  mintAddress: mint as PublicKey,
+                });
+              setTokenMintMetadata(nft);
+              setTicker(nft!.symbol.toLowerCase());
+              const tokenAccounts =
+                await connection.getParsedTokenAccountsByOwner(
+                  walletAdapter.publicKey as PublicKey,
+                  // @ts-ignore
+                  { mint: mint }
+                );
+              if (tokenAccounts.value.length === 0) {
+                setMintButton({ title: "No Bonk Account", disabled: true });
+              } else {
+                const tokenAccount = await getAssociatedTokenAddress(
+                  // @ts-ignore
+                  mint,
+                  walletAdapter.publicKey as PublicKey
+                );
+                const tokenBalance = await connection.getTokenAccountBalance(
+                  tokenAccount
+                );
+                if (
+                  // @ts-ignore
+                  tokenBalance.value.uiAmount <=
+                  // @ts-ignore
+                  _cm.candyGuard.guards.tokenPayment.amount.basisPoints.toNumber() /
+                    LAMPORTS_PER_SOL
+                ) {
+                  setMintButton({
+                    title: "Insufficient Bonk Balance",
+                    disabled: true,
+                  });
+                }
+              }
+            }
+          } else {
+            console.log("V2");
+            // @ts-ignore
+            setPrice(cm?.price.basisPoints.toNumber() / LAMPORTS_PER_SOL);
+            // @ts-ignore
+            if (_cm.tokenMintAddress) {
+              // @ts-ignore
+              setTokenMint(_cm.tokenMintAddress);
+              // @ts-ignore
+              // console.log(_cm.tokenMintAddress);
+              const nft = await metaplex
+                ?.nfts()
+                // @ts-ignore
+                .findByMint({ mintAddress: _cm.tokenMintAddress as PublicKey });
+              setTokenMintMetadata(nft);
+              // console.log(nft);
+              setTicker(nft!.symbol.toLowerCase());
+              const tokenAccounts =
+                await connection.getParsedTokenAccountsByOwner(
+                  walletAdapter.publicKey as PublicKey,
+                  // @ts-ignore
+                  { mint: _cm.tokenMintAddress }
+                );
+              if (tokenAccounts.value.length === 0) {
+                setMintButton({ title: "No Bonk Account", disabled: true });
+              } else {
+                const tokenAccount = await getAssociatedTokenAddress(
+                  // @ts-ignore
+                  _cm.tokenMintAddress,
+                  walletAdapter.publicKey as PublicKey
+                );
+                const tokenBalance = await connection.getTokenAccountBalance(
+                  tokenAccount
+                );
+                if (
+                  // @ts-ignore
+                  tokenBalance.value.uiAmount <=
+                  // @ts-ignore
+                  _cm?.price?.basisPoints.toNumber() / LAMPORTS_PER_SOL
+                ) {
+                  setMintButton({
+                    title: "Insufficient Bonk Balance",
+                    disabled: true,
+                  });
+                }
               }
             }
           }
@@ -150,19 +224,20 @@ export default function Home() {
           setSetting(false);
         });
     },
-    [
-      // @ts-ignore
-      cm?.accountInfo?.lamports.basisPoints,
-      cm?.model,
-      // @ts-ignore
-      cm?.price?.basisPoints,
-      connection,
-      getCandyMachine,
-      isV3,
-      metaplex,
-      toast,
-      walletAdapter,
-    ]
+    [cm, connection, getCandyMachine, isV3, metaplex, walletAdapter.publicKey]
+  );
+
+  const onSubmit = useCallback(
+    async (data: { cmId: string }) => {
+      setTicker("sol");
+      if (!walletAdapter || !walletAdapter.publicKey) {
+        return toast({ title: "Connect wallet", status: "info" });
+      }
+      setSetting(true);
+      setCmId(data.cmId);
+      await cmStatusRefresh(new PublicKey(data.cmId));
+    },
+    [cmStatusRefresh, toast, walletAdapter]
   );
 
   const mint = useCallback(async () => {
@@ -195,13 +270,7 @@ export default function Home() {
           duration: 10000,
         });
       }
-      getCandyMachine(new PublicKey(cmId))
-        .then((_cm) => {
-          setCm(_cm);
-        })
-        .catch((error) => {
-          console.error(error);
-        });
+      await cmStatusRefresh(new PublicKey(cmId));
     } catch (error: any) {
       console.log(error);
       toast({
@@ -215,46 +284,61 @@ export default function Home() {
   }, [
     cm,
     cmId,
-    getCandyMachine,
+    cmStatusRefresh,
     isV3,
     metaplex,
     toast,
     walletAdapter.connected,
   ]);
 
-  const isMintDisabled = useCallback(async () => {
-    if (!walletAdapter || !connection || !walletAdapter?.publicKey) return;
-    if (tokenMint) return;
-    return (
-      (await connection.getBalance(walletAdapter?.publicKey as PublicKey)) <
-      // @ts-ignore
-      (isV3(cm?.model)
-        ? // @ts-ignore
-          cm?.accountInfo?.lamports.basisPoints.toNumber()
-        : // @ts-ignore
-          cm?.price?.basisPoints.toNumber())
-    );
-  }, [
-    // @ts-ignore
-    cm?.accountInfo?.lamports.basisPoints,
-    cm?.model,
-    // @ts-ignore
-    cm?.price?.basisPoints,
-    connection,
-    isV3,
-    tokenMint,
-    walletAdapter,
-  ]);
+  // const isMintDisabled = useCallback(async () => {
+  //   if (!walletAdapter || !connection || !walletAdapter?.publicKey) return;
+  //   if (tokenMint) return;
+  //   if (!cm) return;
+  //   // @ts-ignore
+  //   if (isV3(cm?.model)) {
+  //     const tokenAccount = await getAssociatedTokenAddress(
+  //       // @ts-ignore
+  //       cm.candyGuard.guards.tokenPayment.mint,
+  //       walletAdapter.publicKey as PublicKey
+  //     );
+  //     const tokenBalance = await connection.getTokenAccountBalance(
+  //       tokenAccount
+  //     );
+  //     return (
+  //       // @ts-ignore
+  //       tokenBalance.value.uiAmount <=
+  //       // @ts-ignore
+  //       cm?.candyGuard.guards.tokenPayment.amount.basisPoints.toNumber() /
+  //         LAMPORTS_PER_SOL
+  //     );
+  //   } else {
+  //     return (
+  //       (await connection.getBalance(walletAdapter?.publicKey as PublicKey)) <=
+  //       // @ts-ignore
+  //       cm?.price.basisPoints.toNumber()
+  //     );
+  //   }
+  //   // return (
+  //   //   (await connection.getBalance(walletAdapter?.publicKey as PublicKey)) <
+  //   //   // @ts-ignore
+  //   //   (isV3(cm?.model)
+  //   //     ? // @ts-ignore
+  //   //       cm?.accountInfo?.lamports.basisPoints.toNumber()
+  //   //     : // @ts-ignore
+  //   //       cm?.price?.basisPoints.toNumber())
+  //   // );
+  // }, [cm, connection, isV3, tokenMint, walletAdapter]);
 
-  useEffect(() => {
-    isMintDisabled().then((isDisabled) => {
-      if (isDisabled) {
-        setMintButton({ title: "insufficient balance", disabled: true });
-      } else {
-        setMintButton({ title: "mint", disabled: false });
-      }
-    });
-  }, [isMintDisabled]);
+  // useEffect(() => {
+  //   isMintDisabled().then((isDisabled) => {
+  //     if (isDisabled) {
+  //       setMintButton({ title: "insufficient balance", disabled: true });
+  //     } else {
+  //       setMintButton({ title: "mint", disabled: false });
+  //     }
+  //   });
+  // }, [isMintDisabled]);
 
   useEffect(() => {
     if (!watch("cmId")) {
@@ -400,16 +484,7 @@ export default function Home() {
                 fontWeight={"700"}
                 fontSize="xl"
               >
-                {isV3(cm.model)
-                  ? `${
-                      // @ts-ignore
-                      cm?.accountInfo?.lamports.basisPoints.toNumber() /
-                      LAMPORTS_PER_SOL
-                    } sol`
-                  : `${
-                      // @ts-ignore
-                      cm?.price.basisPoints.toNumber() / LAMPORTS_PER_SOL
-                    } ${ticker}`}
+                {`${price} ${ticker}`}
               </Text>
             </Flex>
             <Button
