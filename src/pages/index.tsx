@@ -171,8 +171,6 @@ export default function Home() {
           } else {
             console.log("V2");
             // @ts-ignore
-            setPrice(cm?.price.basisPoints.toNumber() / LAMPORTS_PER_SOL);
-            // @ts-ignore
             if (_cm.tokenMintAddress) {
               // @ts-ignore
               setTokenMint(_cm.tokenMintAddress);
@@ -213,6 +211,27 @@ export default function Home() {
                     disabled: true,
                   });
                 }
+              }
+            } else {
+              // @ts-ignore
+              setPrice(_cm?.price.basisPoints.toNumber() / LAMPORTS_PER_SOL);
+              const _balance = await connection.getBalance(
+                walletAdapter.publicKey as PublicKey
+              );
+              if (
+                _balance <=
+                // @ts-ignore
+                _cm?.price.basisPoints.toNumber()
+              ) {
+                setMintButton({
+                  title: "Insufficient Bonk Balance",
+                  disabled: true,
+                });
+              } else {
+                setMintButton({
+                  title: "Mint",
+                  disabled: false,
+                });
               }
             }
           }
