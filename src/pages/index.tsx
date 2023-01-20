@@ -14,6 +14,10 @@ import {
   CandyMachine,
   CandyMachineV2,
   DefaultCandyGuardSettings,
+  Nft,
+  NftWithToken,
+  Sft,
+  SftWithToken,
 } from "@metaplex-foundation/js";
 import { Roboto } from "@next/font/google";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
@@ -22,6 +26,8 @@ import Head from "next/head";
 import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import * as yup from "yup";
+import { getAssociatedTokenAddress } from "@solana/spl-token";
+import {} from "@project-serum/anchor";
 
 const roboto = Roboto({ weight: "400", subsets: ["latin"] });
 
@@ -48,6 +54,11 @@ export default function Home() {
   const [cm, setCm] = useState<
     CandyMachine<DefaultCandyGuardSettings> | CandyMachineV2
   >();
+  const [tokenMint, setTokenMint] = useState<PublicKey>();
+  const [tokenMintMetadata, setTokenMintMetadata] = useState<
+    Sft | SftWithToken | Nft | NftWithToken
+  >();
+  const [ticker, setTicker] = useState("sol");
   const [isChanged, setIsChanged] = useState(false);
   const change = () => {
     setIsChanged((_prev) => !_prev);
@@ -66,6 +77,7 @@ export default function Home() {
     register,
     handleSubmit,
     formState: { errors },
+    watch,
   } = useForm({
     resolver: yupResolver(schema),
     defaultValues: {
@@ -74,11 +86,62 @@ export default function Home() {
   });
   const onSubmit = useCallback(
     (data: { cmId: string }) => {
+      setTicker("sol");
+      if (!walletAdapter || !walletAdapter.publicKey) {
+        return toast({ title: "Connect wallet", status: "info" });
+      }
       setSetting(true);
       setCmId(data.cmId);
       getCandyMachine(new PublicKey(data.cmId))
-        .then((_cm) => {
+        .then(async (_cm) => {
           setCm(_cm);
+          // @ts-ignore
+          if (_cm.tokenMintAddress) {
+            // @ts-ignore
+            setTokenMint(_cm.tokenMintAddress);
+            // @ts-ignore
+            // console.log(_cm.tokenMintAddress);
+            const nft = await metaplex
+              ?.nfts()
+              // @ts-ignore
+              .findByMint({ mintAddress: _cm.tokenMintAddress as PublicKey });
+            setTokenMintMetadata(nft);
+            // console.log(nft);
+            setTicker(nft!.symbol.toLowerCase());
+            const tokenAccounts =
+              await connection.getParsedTokenAccountsByOwner(
+                walletAdapter.publicKey as PublicKey,
+                // @ts-ignore
+                { mint: _cm.tokenMintAddress }
+              );
+            if (tokenAccounts.value.length === 0) {
+              setMintButton({ title: "No Bonk Account", disabled: true });
+            } else {
+              const tokenAccount = await getAssociatedTokenAddress(
+                // @ts-ignore
+                _cm.tokenMintAddress,
+                walletAdapter.publicKey as PublicKey
+              );
+              const tokenBalance = await connection.getTokenAccountBalance(
+                tokenAccount
+              );
+              if (
+                // @ts-ignore
+                tokenBalance.value.uiAmount <=
+                // @ts-ignore
+                (isV3(cm?.model)
+                  ? // @ts-ignore
+                    cm?.accountInfo?.lamports.basisPoints.toNumber()
+                  : // @ts-ignore
+                    cm?.price?.basisPoints.toNumber())
+              ) {
+                setMintButton({
+                  title: "Insufficient Bonk Balance",
+                  disabled: true,
+                });
+              }
+            }
+          }
         })
         .catch((error) => {
           console.error(error);
@@ -87,8 +150,21 @@ export default function Home() {
           setSetting(false);
         });
     },
-    [getCandyMachine]
+    [
+      // @ts-ignore
+      cm?.accountInfo?.lamports.basisPoints,
+      cm?.model,
+      // @ts-ignore
+      cm?.price?.basisPoints,
+      connection,
+      getCandyMachine,
+      isV3,
+      metaplex,
+      toast,
+      walletAdapter,
+    ]
   );
+
   const mint = useCallback(async () => {
     try {
       if (!cmId && !cm && !walletAdapter.connected) return;
@@ -136,7 +212,15 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }, [cm, isV3, metaplex, toast, walletAdapter.connected]);
+  }, [
+    cm,
+    cmId,
+    getCandyMachine,
+    isV3,
+    metaplex,
+    toast,
+    walletAdapter.connected,
+  ]);
 
   const isMintDisabled = useCallback(async () => {
     if (!walletAdapter || !connection || !walletAdapter?.publicKey) return;
@@ -149,7 +233,16 @@ export default function Home() {
         : // @ts-ignore
           cm?.price?.basisPoints.toNumber())
     );
-  }, []);
+  }, [
+    // @ts-ignore
+    cm?.accountInfo?.lamports.basisPoints,
+    cm?.model,
+    // @ts-ignore
+    cm?.price?.basisPoints,
+    connection,
+    isV3,
+    walletAdapter,
+  ]);
 
   useEffect(() => {
     isMintDisabled().then((isDisabled) => {
@@ -161,7 +254,13 @@ export default function Home() {
     });
   }, [isMintDisabled]);
 
-  useEffect(() => {}, [isChanged, metaplex]);
+  useEffect(() => {
+    if (!watch("cmId")) {
+      setCm(undefined);
+      setCmId("");
+      setTicker("sol");
+    }
+  }, [isChanged, metaplex, watch]);
   return (
     <div className={roboto.className}>
       <Head>
@@ -210,14 +309,14 @@ export default function Home() {
               mt="4"
               w="full"
               type="submit"
-              loadingText="minting..."
+              loadingText="setting..."
               isLoading={setting}
             >
               set
             </Button>
           </form>
         </Box>
-        {cm && (
+        {cm && cm.address.toBase58() === cmId && cmId === watch("cmId") && (
           <Box>
             <Flex
               mt="4"
@@ -308,7 +407,7 @@ export default function Home() {
                   : `${
                       // @ts-ignore
                       cm?.price.basisPoints.toNumber() / LAMPORTS_PER_SOL
-                    } sol`}
+                    } ${ticker}`}
               </Text>
             </Flex>
             <Button
