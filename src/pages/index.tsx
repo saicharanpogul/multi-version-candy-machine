@@ -104,7 +104,7 @@ export default function Home() {
                 walletAdapter.publicKey as PublicKey
               );
               if (
-                _balance <
+                _balance <=
                 // @ts-ignore
                 _cm.candyGuard.guards.solPayment.amount.basisPoints.toNumber()
               ) {
@@ -231,7 +231,7 @@ export default function Home() {
                 walletAdapter.publicKey as PublicKey
               );
               if (
-                _balance <
+                _balance <=
                 // @ts-ignore
                 _cm?.price.basisPoints.toNumber()
               ) {
