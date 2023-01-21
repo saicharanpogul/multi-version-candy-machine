@@ -104,7 +104,7 @@ export default function Home() {
                 walletAdapter.publicKey as PublicKey
               );
               if (
-                _balance <=
+                _balance <
                 // @ts-ignore
                 _cm.candyGuard.guards.solPayment.amount.basisPoints.toNumber()
               ) {
@@ -156,7 +156,7 @@ export default function Home() {
                 );
                 if (
                   // @ts-ignore
-                  tokenBalance.value.uiAmount <=
+                  tokenBalance.value.uiAmount <
                   // @ts-ignore
                   _cm.candyGuard.guards.tokenPayment.amount.basisPoints.toNumber() /
                     LAMPORTS_PER_SOL
@@ -197,6 +197,8 @@ export default function Home() {
               if (tokenAccounts.value.length === 0) {
                 setMintButton({ title: "No Bonk Account", disabled: true });
               } else {
+                // @ts-ignore
+                setPrice(_cm?.price.basisPoints.toNumber() / LAMPORTS_PER_SOL);
                 const tokenAccount = await getAssociatedTokenAddress(
                   // @ts-ignore
                   _cm.tokenMintAddress,
@@ -207,7 +209,7 @@ export default function Home() {
                 );
                 if (
                   // @ts-ignore
-                  tokenBalance.value.uiAmount <=
+                  tokenBalance.value.uiAmount <
                   // @ts-ignore
                   _cm?.price?.basisPoints.toNumber() / LAMPORTS_PER_SOL
                 ) {
@@ -229,7 +231,7 @@ export default function Home() {
                 walletAdapter.publicKey as PublicKey
               );
               if (
-                _balance <=
+                _balance <
                 // @ts-ignore
                 _cm?.price.basisPoints.toNumber()
               ) {
