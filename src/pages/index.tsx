@@ -121,10 +121,15 @@ export default function Home() {
             }
             // @ts-ignore
             if (_cm.candyGuard.guards.tokenPayment) {
+              const token = await metaplex?.tokens().findMintByAddress({
+                // @ts-ignore
+                address: _cm.candyGuard.guards.tokenPayment.mint,
+              });
+              const decimals = token?.currency.decimals;
               setPrice(
                 // @ts-ignore
                 _cm.candyGuard.guards.tokenPayment.amount.basisPoints.toNumber() /
-                  LAMPORTS_PER_SOL
+                  10 ** (decimals as number)
               );
               // @ts-ignore
               const mint = _cm.candyGuard.guards.tokenPayment.mint;
@@ -144,7 +149,7 @@ export default function Home() {
                   { mint: mint }
                 );
               if (tokenAccounts.value.length === 0) {
-                setMintButton({ title: "No Bonk Account", disabled: true });
+                setMintButton({ title: "No Token Account", disabled: true });
               } else {
                 const tokenAccount = await getAssociatedTokenAddress(
                   // @ts-ignore
@@ -159,10 +164,10 @@ export default function Home() {
                   tokenBalance.value.uiAmount <
                   // @ts-ignore
                   _cm.candyGuard.guards.tokenPayment.amount.basisPoints.toNumber() /
-                    LAMPORTS_PER_SOL
+                    10 ** (decimals as number)
                 ) {
                   setMintButton({
-                    title: "Insufficient Bonk Balance",
+                    title: "Insufficient Token Balance",
                     disabled: true,
                   });
                 } else {
@@ -194,11 +199,15 @@ export default function Home() {
                   // @ts-ignore
                   { mint: _cm.tokenMintAddress }
                 );
-              if (tokenAccounts.value.length === 0) {
-                setMintButton({ title: "No Bonk Account", disabled: true });
-              } else {
+              setPrice(
                 // @ts-ignore
-                setPrice(_cm?.price.basisPoints.toNumber() / LAMPORTS_PER_SOL);
+                _cm?.price.basisPoints.toNumber() /
+                  // @ts-ignore
+                  10 ** _cm?.price.currency.decimals
+              );
+              if (tokenAccounts.value.length === 0) {
+                setMintButton({ title: "No Token Account", disabled: true });
+              } else {
                 const tokenAccount = await getAssociatedTokenAddress(
                   // @ts-ignore
                   _cm.tokenMintAddress,
@@ -211,10 +220,12 @@ export default function Home() {
                   // @ts-ignore
                   tokenBalance.value.uiAmount <
                   // @ts-ignore
-                  _cm?.price?.basisPoints.toNumber() / LAMPORTS_PER_SOL
+                  _cm?.price?.basisPoints.toNumber() /
+                    // @ts-ignore
+                    10 ** _cm?.price.currency.decimals
                 ) {
                   setMintButton({
-                    title: "Insufficient Bonk Balance",
+                    title: "Insufficient Token Balance",
                     disabled: true,
                   });
                 } else {
@@ -236,7 +247,7 @@ export default function Home() {
                 _cm?.price.basisPoints.toNumber()
               ) {
                 setMintButton({
-                  title: "Insufficient Bonk Balance",
+                  title: "Insufficient Token Balance",
                   disabled: true,
                 });
               } else {

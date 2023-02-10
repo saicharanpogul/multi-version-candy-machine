@@ -19,7 +19,8 @@ export const getUrls = (
     };
   } else if (network === "mainnet-beta") {
     return {
-      rpc: clusterApiUrl("mainnet-beta"),
+      // rpc: clusterApiUrl("mainnet-beta"),
+      rpc: "https://api.metaplex.solana.com/",
       bundlrAddress: "https://node1.bundlr.network",
       bundlrProviderUrl: clusterApiUrl("mainnet-beta"),
       explorer: `https://explorer.solana.com/${type}/${sig}`,

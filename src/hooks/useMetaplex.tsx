@@ -79,13 +79,12 @@ const useMetaplex = (changed?: () => void) => {
     return model === "candyMachine" ? true : false;
   }, []);
 
-  const getCandyMachine = useCallback(
+  const getCandyMachineV3 = useCallback(
     async (cmId: PublicKey) => {
       try {
         const _cm = await metaplex!
           .candyMachines()
           .findByAddress({ address: cmId });
-
         toast({
           title: "candy machine v3",
           status: "success",
@@ -93,28 +92,36 @@ const useMetaplex = (changed?: () => void) => {
         });
         return _cm;
       } catch (error) {
-        try {
-          const _cm = await metaplex!
-            .candyMachinesV2()
-            .findByAddress({ address: cmId });
-          toast({
-            title: "candy machine v2",
-            status: "success",
-            duration: 6000,
-          });
-          return _cm;
-        } catch (error) {
-          toast({
-            title: "invalid cm",
-            description: "provided id is neither cm v2 or v3.",
-            status: "error",
-            duration: 6000,
-          });
-          throw error;
-        }
+        console.log(error);
+        toast({
+          title: "invalid cm",
+          description: "provided id is neither cm v2 or v3.",
+          status: "error",
+          duration: 6000,
+        });
+        throw error;
       }
     },
     [metaplex, toast]
+  );
+
+  const getCandyMachine = useCallback(
+    async (cmId: PublicKey) => {
+      try {
+        const _cm = await metaplex!
+          .candyMachinesV2()
+          .findByAddress({ address: cmId });
+        toast({
+          title: "candy machine v2",
+          status: "success",
+          duration: 6000,
+        });
+        return _cm;
+      } catch (error) {
+        return getCandyMachineV3(cmId);
+      }
+    },
+    [getCandyMachineV3, metaplex, toast]
   );
 
   return { metaplex, getCandyMachine, isV3, getUrls, network, changeNetwork };
