@@ -4,10 +4,12 @@ const usePhantom = () => {
   const [isPhantom, setIsPhantom] = useState(false);
 
   useEffect(() => {
-    // @ts-ignore
-    if (window!.solana) {
-      setIsPhantom(true);
-    }
+    setTimeout(() => {
+      // @ts-ignore
+      if (typeof window !== "undefined" && window!.solana) {
+        setIsPhantom(true);
+      }
+    }, 1000);
   }, []);
 
   return isPhantom;

@@ -4,6 +4,8 @@ export const truncateAddress = (address: string) => {
   return address.slice(0, 4) + ".." + address.slice(-4);
 };
 
+const API_KEY = process.env.NEXT_PUBLIC_HELIUS_API_KEY;
+
 export const NETWORK: Network = "localnet";
 export const getUrls = (
   network: Network | undefined,
